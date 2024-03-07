@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "rinha-de-backend-2024q1"
+version = "0.1.0"
+description = ""
+authors = ["Régis Brilhante <regis.f.brilhante@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.110.0"
+uvicorn = {extras = ["standard"], version = "^0.27.1"}
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+pytest = "^8.0.2"
+httpx = "^0.27.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
