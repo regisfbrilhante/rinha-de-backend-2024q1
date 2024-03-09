@@ -10,8 +10,9 @@ class ClienteRepositorio:
     def get_extrato(self, cliente_id: int):
 
         with self._connection.cursor() as cursor:
-            # cursor.execute("SET TRANSACTION MODE READ COMMITTED")
+            # cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
 
+            # TODO: refatorar para usar o get_limite no cliente repositorio em vez do transacao repositorio
             cursor.execute("SELECT limite FROM clientes WHERE id = %s;", (cliente_id,))
             limite = cursor.fetchone()
 

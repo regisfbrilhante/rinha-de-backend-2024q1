@@ -1,5 +1,6 @@
-from src.config import config
 from psycopg2 import connect
+
+from src.config import config
 
 
 def create_connection():
