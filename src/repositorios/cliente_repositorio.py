@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from schemas.schemas import Extrato, Saldo, TransacaoRealizada
+from src.schemas.schemas import Extrato, Saldo, TransacaoRealizada
 
 
 class ClienteRepositorio:
@@ -21,16 +21,15 @@ class ClienteRepositorio:
             limite = limite[0]
 
             ultimas_transacoes = []
+
             cursor.execute(
                 """SELECT valor, tipo , descricao, data_transacao, saldo
                 FROM transacoes
-                WHERE cliente_id = %s
-                ORDER BY data_transacao DESC LIMIT 10;""",
+                WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 10;""",
+                (cliente_id,),
             )
 
-        transacoes = cursor.fetchall()
-        if not transacoes:
-            ultimas_transacoes
+            transacoes = cursor.fetchall()
 
         for transacao in transacoes:
             ultimas_transacoes.append(
@@ -44,7 +43,10 @@ class ClienteRepositorio:
 
         data_extrato = datetime.utcnow()
 
-        saldo_atual = transacoes[0]["saldo"]
+        if not transacoes:
+            saldo_atual = 0
+        else:
+            saldo_atual = transacoes[0][-1]
 
         return Extrato(
             ultimas_transacoes=ultimas_transacoes,
