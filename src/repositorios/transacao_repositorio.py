@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.main import Transacao
+from src.schemas.schemas import ResultadoTransacao, Transacao
 
 
 class TransacaoRepositorio:
@@ -16,6 +16,14 @@ class TransacaoRepositorio:
 
         with self._session.cursor() as cursor:
             cursor.execute("LOCK TABLE transacoes IN SHARE ROW EXCLUSIVE MODE;")
+
+            cursor.execute("SELECT limite FROM clientes WHERE id = %s;", (cliente_id,))
+            limite = cursor.fetchone()
+
+            if not limite:
+                raise ValueError("Cliente não encontrado")
+
+            limite = limite[0]
 
             cursor.execute(
                 "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
@@ -44,6 +52,35 @@ class TransacaoRepositorio:
             )
 
         self._session.commit()
-        return novo_saldo
+        return ResultadoTransacao(limite=limite, saldo=novo_saldo)
 
-    def credito(self, cliente_id: int, valor: int) -> None: ...
+    def credito(
+        self, cliente_id: int, transacao: Transacao, limite: int
+    ) -> ResultadoTransacao:
+        with self._session.cursor() as cursor:
+            cursor.execute("LOCK TABLE transacoes IN SHARE ROW EXCLUSIVE MODE;")
+
+            cursor.execute(
+                "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
+                (cliente_id,),
+            )
+            saldo_atual = cursor.fetchone()
+            saldo_atual = saldo_atual[0] if saldo_atual else 0
+
+            novo_saldo = saldo_atual + transacao.valor
+
+            updated_date = datetime.utcnow()
+
+            cursor.execute(
+                "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao) VALUES (%s, %s, %s, %s, %s)",
+                (
+                    transacao.valor,
+                    transacao.descricao,
+                    cliente_id,
+                    novo_saldo,
+                    updated_date,
+                ),
+            )
+
+        self._session.commit()
+        return ResultadoTransacao(limite=limite, saldo=novo_saldo)

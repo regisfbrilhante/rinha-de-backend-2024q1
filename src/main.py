@@ -1,36 +1,20 @@
-from datetime import datetime
-from typing import List, Union
-
 from fastapi import FastAPI
-from pydantic import BaseModel
+from src.schemas.schemas import Transacao
+from src.repositorios.pgsql_connection_factory import create_connection
+
+from src.repositorios.transacao_repositorio import TransacaoRepositorio
+
 
 app = FastAPI()
 
-
-class Transacao(BaseModel):
-    valor: int
-    tipo: str
-    descricao: str
-
-
-class TransacaoRealizada(Transacao):
-    realizada_em: datetime
-
-
-class Saldo(BaseModel):
-    total: int
-    data_extrato: datetime
-    limite: int
-
-
-class Extrato(BaseModel):
-    saldo: Saldo
-    ultimas_transacoes: List[TransacaoRealizada]
+connection = create_connection()
+repositorio = TransacaoRepositorio(connection)
 
 
 @app.post("/clientes/{cliente_id}/transacoes")
 def criar_transacao(cliente_id: int, transacao: Transacao):
-    return {"limite": 100000, "saldo": -9098}
+    response = repositorio.credito(cliente_id, transacao, 1000)
+    return response
 
 
 @app.get("/clientes/{cliente_id}/extrato")
