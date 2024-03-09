@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from src.exceptions.exceptions import BalanceLimitExceededException
 from src.schemas.schemas import ResultadoTransacao, Transacao
 
 
@@ -23,7 +24,7 @@ class TransacaoRepositorio:
         limite = self.get_limite(cliente_id)
 
         with self._session.cursor() as cursor:
-            cursor.execute("LOCK TABLE transacoes IN SHARE ROW EXCLUSIVE MODE;")
+            cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
 
             cursor.execute(
                 "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
@@ -36,7 +37,8 @@ class TransacaoRepositorio:
             novo_saldo = saldo_atual - transacao.valor
 
             if novo_saldo < 0 and novo_saldo * -1 > limite:
-                raise ValueError("Saldo insuficiente")
+                cursor.execute("ROLLBACK;")
+                raise BalanceLimitExceededException("Saldo insuficiente")
 
             updated_date = datetime.utcnow()
 
@@ -60,7 +62,7 @@ class TransacaoRepositorio:
         limite = self.get_limite(cliente_id)
         with self._session.cursor() as cursor:
 
-            cursor.execute("LOCK TABLE transacoes IN SHARE ROW EXCLUSIVE MODE;")
+            cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
 
             cursor.execute(
                 "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",

@@ -48,14 +48,19 @@ class TestBase:
         self.repositorio = TransacaoRepositorio(self.connection)
 
         with self.connection.cursor() as cursor:
+            cursor.execute(query=script_sql)
+        self.connection.commit()
+
+        with self.connection.cursor() as cursor:
+            cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
             cursor.execute("DELETE FROM transacoes")
             cursor.execute("DELETE FROM clientes")
-            cursor.execute(query=script_sql)
             self.connection.commit()
 
         yield
 
         with self.connection.cursor() as cursor:
+            cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
             cursor.execute("DELETE FROM transacoes")
             cursor.execute("DELETE FROM clientes")
             self.connection.commit()

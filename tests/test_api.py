@@ -34,8 +34,14 @@ class TesteApi(TestBase):
         assert response.status_code == 200
         assert response.json() == {"limite": 100000, "saldo": -10}
 
+    def test_quando_o_limite_foi_atingido_deve_retornar_402(self, client_id):
+        body = {"valor": 100001, "tipo": "d", "descricao": "descricao"}
+        response = self.client.post(f"/clientes/{client_id}/transacoes", json=body)
+
+        assert response.status_code == 402
+        # assert response.json() == {"detail": "Limite atingido"}
+
     def test_get_extrato_deve_retornar_200_com_o_extrato_esperado(self, client_id):
-        body = {"valor": 10, "tipo": "c", "descricao": "descricao"}
         response = self.client.get(f"/clientes/{client_id}/extrato")
 
         assert response.status_code == 200
