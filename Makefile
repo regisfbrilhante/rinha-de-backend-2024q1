@@ -3,8 +3,15 @@ docker/build:
 	docker build -t rinha-backend .
 
 test/setup/infra/start:
-	docker container run -d -e POSTGRES_PASSWORD=123 -e POSTGRES_USER -e POSTGRES_DB=rinha -p 5400:5432 postgres:15.6-alpine3.19
+	make test/setup/infra/stop
+	docker container run -d -e POSTGRES_PASSWORD=123 -e POSTGRES_USER=admin -e POSTGRES_DB=rinha -p 5400:5432 --name postgres-teste postgres:15.6-alpine3.19 
 	sleep 10
 
 test/setup/infra/stop:
-	docker container stop $(shell docker container ls -q --filter ancestor=postgres:15.6-alpine3.19)
+
+	container_id=$$(docker container ls -a -q --filter "name=postgres-teste"); \
+	if [ ! -z "$$container_id" ]; then \
+		docker container stop $$container_id; \
+		docker container rm $$container_id -v; \
+	fi
+	

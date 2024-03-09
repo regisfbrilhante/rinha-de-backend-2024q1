@@ -1,16 +1,6 @@
 from datetime import datetime
 
-from main import Transacao
-
-
-class ValidadorTransacao:
-    def validar(self, limite: int, saldo, valor: int) -> None: ...
-
-
-class ValidarDebito:
-    def validar(self, limite: int, saldo: int, valor: int) -> None:
-        if (saldo + valor) > limite:
-            raise ValueError("Saldo insuficiente")
+from src.main import Transacao
 
 
 class TransacaoRepositorio:
@@ -22,31 +12,38 @@ class TransacaoRepositorio:
         cliente_id: int,
         transacao: Transacao,
         limite: int,
-        validador: ValidadorTransacao,
     ) -> None:
-        updated_date = datetime.utc.now()
 
         with self._session.cursor() as cursor:
-            saldo_atual = cursor.execute(
-                "SELECT saldo FROM client WHERE cliente_id = %s", (cliente_id,)
-            )
-
-            validador.validar(limite, saldo_atual, transacao.valor)
+            cursor.execute("LOCK TABLE transacoes IN SHARE ROW EXCLUSIVE MODE;")
 
             cursor.execute(
-                "INSERT INTO TRANSACAO (valor, descricao, cliente_id, data) VALUES (%s, %s, %s, %s, %s)",
-                (transacao.valor, transacao.descricao, cliente_id, updated_date),
+                "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
+                (cliente_id,),
             )
+
+            saldo_atual = cursor.fetchone()
+            saldo_atual = saldo_atual[0] if saldo_atual else 0
 
             novo_saldo = saldo_atual - transacao.valor
 
+            if novo_saldo < 0 and novo_saldo * -1 > limite:
+                raise ValueError("Saldo insuficiente")
+
+            updated_date = datetime.utcnow()
+
             cursor.execute(
-                """
-                UPDATE saldo SET total = total + %s WHERE cliente_id = %s;
-                """,
-                (novo_saldo, cliente_id),
+                "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao) VALUES (%s, %s, %s, %s, %s)",
+                (
+                    transacao.valor,
+                    transacao.descricao,
+                    cliente_id,
+                    novo_saldo,
+                    updated_date,
+                ),
             )
 
-            return limite, novo_saldo
+        self._session.commit()
+        return novo_saldo
 
     def credito(self, cliente_id: int, valor: int) -> None: ...
