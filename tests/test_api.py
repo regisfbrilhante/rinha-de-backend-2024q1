@@ -34,11 +34,11 @@ class TesteApi(TestBase):
         assert response.status_code == 200
         assert response.json() == {"limite": 100000, "saldo": -10}
 
-    def test_quando_o_limite_foi_atingido_deve_retornar_402(self, client_id):
+    def test_quando_o_limite_foi_atingido_deve_retornar_422(self, client_id):
         body = {"valor": 100001, "tipo": "d", "descricao": "descricao"}
         response = self.client.post(f"/clientes/{client_id}/transacoes", json=body)
 
-        assert response.status_code == 402
+        assert response.status_code == 422
 
     @pytest.mark.parametrize("operacao", ["c", "d"])
     def test_quando_o_cliente_nao_existir_para_credito_ou_debito_deve_retornar_404(
