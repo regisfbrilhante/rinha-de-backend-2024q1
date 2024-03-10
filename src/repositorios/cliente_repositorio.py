@@ -18,7 +18,8 @@ class ClienteRepositorio:
             limite = cursor.fetchone()
 
             if not limite:
-                raise ValueError("Cliente não encontrado")
+                self._connection.rollback()
+                raise ClientNotFoundException("Cliente não encontrado")
 
             limite = limite[0]
 

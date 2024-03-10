@@ -41,9 +41,16 @@ class TesteApi(TestBase):
         assert response.status_code == 402
 
     @pytest.mark.parametrize("operacao", ["c", "d"])
-    def test_quando_o_cliente_nao_existir_deve_retornar_404(self, operacao):
+    def test_quando_o_cliente_nao_existir_para_credito_ou_debito_deve_retornar_404(
+        self, operacao
+    ):
         body = {"valor": 100001, "tipo": operacao, "descricao": "descricao"}
         response = self.client.post(f"/clientes/{-1}/transacoes", json=body)
+
+        assert response.status_code == 404
+
+    def test_quando_o_cliente_nao_existir_para_extrato_deve_retornar_404(self):
+        response = self.client.get(f"/clientes/{-1}/extrato")
 
         assert response.status_code == 404
 

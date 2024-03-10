@@ -1,4 +1,5 @@
 import os
+from time import sleep
 
 import pytest
 
@@ -7,25 +8,6 @@ from src.repositorios.transacao_repositorio import TransacaoRepositorio
 
 
 class TestBase:
-
-    # def __init__(self) -> None:
-
-    #     os.environ["ENV"] = "TEST"
-    #     os.environ["db_host"] = "localhost"
-    #     os.environ["db_port"] = "5400"
-    #     os.environ["db_name"] = "rinha"
-    #     os.environ["db_user"] = "admin"
-    #     os.environ["db_pass"] = "123"
-
-    #     self.connection = create_connection()
-    #     with self.connection.cursor() as cursor:
-    #         # cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
-    #         # cursor.execute("LOCK TABLE clientes IN EXCLUSIVE MODE;")
-
-    #         # cursor.execute("DROP TABLE IF EXISTS transacoes")
-    #         # cursor.execute("DROP TABLE IF EXISTS clientes")
-
-    #         cursor.execute(query=self.script_sql())
 
     @pytest.fixture()
     def script_sql(self):
@@ -49,7 +31,7 @@ class TestBase:
 
         with self.connection.cursor() as cursor:
             cursor.execute(query=script_sql)
-        self.connection.commit()
+            self.connection.commit()
 
         with self.connection.cursor() as cursor:
             cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
@@ -76,6 +58,7 @@ class TestBase:
             cliente_id = cursor.fetchone()[0]
             self.connection.commit()
             yield cliente_id
+            cursor.execute(f"DELETE FROM transacoes WHERE cliente_id = {cliente_id}")
             cursor.execute(f"DELETE FROM clientes WHERE id = {cliente_id}")
 
     @pytest.fixture()

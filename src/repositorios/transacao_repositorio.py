@@ -15,7 +15,7 @@ class TransacaoRepositorio:
             limite = cursor.fetchone()
 
             if not limite:
-                cursor.execute("ROLLBACK;")
+                self._session.rollback()
                 raise ClientNotFoundException("Cliente não encontrado")
 
             limite = limite[0]
@@ -39,7 +39,7 @@ class TransacaoRepositorio:
             novo_saldo = saldo_atual - transacao.valor
 
             if novo_saldo < 0 and novo_saldo * -1 > limite:
-                cursor.execute("ROLLBACK;")
+                self._session.rollback()
                 raise BalanceLimitExceededException("Saldo insuficiente")
 
             updated_date = datetime.utcnow()

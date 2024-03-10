@@ -3,6 +3,7 @@ from http import client
 
 import pytest
 
+from src.exceptions.exceptions import ClientNotFoundException
 from src.repositorios.cliente_repositorio import ClienteRepositorio
 from tests.test_base import TestBase
 
@@ -88,5 +89,5 @@ class TestClienteRepositorio(TestBase):
     def test_deve_retornar_um_erro_quando_o_cliente_nao_existir(
         self, repositorio: ClienteRepositorio
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(ClientNotFoundException):
             repositorio.get_extrato(cliente_id=-1)

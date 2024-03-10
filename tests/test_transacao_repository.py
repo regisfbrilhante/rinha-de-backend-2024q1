@@ -1,5 +1,6 @@
 import pytest
 
+from src.exceptions.exceptions import BalanceLimitExceededException
 from src.repositorios.transacao_repositorio import TransacaoRepositorio
 from src.schemas.schemas import Transacao
 from tests.test_base import TestBase
@@ -17,7 +18,7 @@ class TestTransacaoRepository(TestBase):
 
         transacao = Transacao(descricao="descricao", tipo="d", valor=100001)
 
-        with pytest.raises(Exception):
+        with pytest.raises(BalanceLimitExceededException):
             repositorio.debito(cliente_id=client_id, transacao=transacao)
 
     def test_quando_o_limite_nao_foi_atingido_deve_realizar_o_debito(
