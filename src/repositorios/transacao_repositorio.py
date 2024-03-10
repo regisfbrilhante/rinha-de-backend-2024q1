@@ -1,4 +1,5 @@
 from datetime import datetime
+from tkinter import E
 
 from src.exceptions.exceptions import (BalanceLimitExceededException,
                                        ClientNotFoundException)
@@ -15,7 +16,7 @@ class TransacaoRepositorio:
             limite = cursor.fetchone()
 
             if not limite:
-                self._session.rollback()
+                cursor.execute("ROLLBACK;")
                 raise ClientNotFoundException("Cliente não encontrado")
 
             limite = limite[0]
@@ -23,72 +24,84 @@ class TransacaoRepositorio:
         return limite
 
     def debito(self, cliente_id: int, transacao: Transacao) -> None:
+
         limite = self.get_limite(cliente_id)
-
         with self._session.cursor() as cursor:
-            cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
+            try:
+                cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
+                cursor.execute("BEGIN;")
 
-            cursor.execute(
-                "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
-                (cliente_id,),
-            )
+                cursor.execute(
+                    "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
+                    (cliente_id,),
+                )
 
-            saldo_atual = cursor.fetchone()
-            saldo_atual = saldo_atual[0] if saldo_atual else 0
+                saldo_atual = cursor.fetchone()
+                saldo_atual = saldo_atual[0] if saldo_atual else 0
 
-            novo_saldo = saldo_atual - transacao.valor
+                novo_saldo = saldo_atual - transacao.valor
 
-            if novo_saldo < 0 and novo_saldo * -1 > limite:
+                if novo_saldo < 0 and novo_saldo * -1 > limite:
+                    cursor.execute("ROLLBACK;")
+                    raise BalanceLimitExceededException("Saldo insuficiente")
+
+                updated_date = datetime.utcnow()
+
+                cursor.execute(
+                    "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (
+                        transacao.valor,
+                        transacao.descricao,
+                        cliente_id,
+                        novo_saldo,
+                        updated_date,
+                        transacao.tipo,
+                    ),
+                )
+            except:
                 self._session.rollback()
-                raise BalanceLimitExceededException("Saldo insuficiente")
-
-            updated_date = datetime.utcnow()
-
-            cursor.execute(
-                "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
-                (
-                    transacao.valor,
-                    transacao.descricao,
-                    cliente_id,
-                    novo_saldo,
-                    updated_date,
-                    transacao.tipo,
-                ),
-            )
-
-        self._session.commit()
+                raise
+            finally:
+                self._session.commit()
 
         return ResultadoTransacao(limite=limite, saldo=novo_saldo)
 
     def credito(self, cliente_id: int, transacao: Transacao) -> ResultadoTransacao:
+
         limite = self.get_limite(cliente_id)
+
         with self._session.cursor() as cursor:
+            try:
+                cursor.execute("BEGIN;")
+                cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
 
-            cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
+                cursor.execute(
+                    "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
+                    (cliente_id,),
+                )
 
-            cursor.execute(
-                "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
-                (cliente_id,),
-            )
+                saldo_atual = cursor.fetchone()
+                saldo_atual = saldo_atual[0] if saldo_atual else 0
 
-            saldo_atual = cursor.fetchone()
-            saldo_atual = saldo_atual[0] if saldo_atual else 0
+                novo_saldo = saldo_atual + transacao.valor
 
-            novo_saldo = saldo_atual + transacao.valor
+                updated_date = datetime.utcnow()
 
-            updated_date = datetime.utcnow()
-
-            cursor.execute(
-                "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
-                (
-                    transacao.valor,
-                    transacao.descricao,
-                    cliente_id,
-                    novo_saldo,
-                    updated_date,
-                    transacao.tipo,
-                ),
-            )
-
-            self._session.commit()
+                cursor.execute(
+                    "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (
+                        transacao.valor,
+                        transacao.descricao,
+                        cliente_id,
+                        novo_saldo,
+                        updated_date,
+                        transacao.tipo,
+                    ),
+                )
+            except:
+                self._session.rollback()
+                raise
+            finally:
+                self._session.commit()
+        
         return ResultadoTransacao(limite=limite, saldo=novo_saldo)

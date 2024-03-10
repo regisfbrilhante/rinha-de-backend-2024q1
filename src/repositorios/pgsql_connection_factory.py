@@ -1,4 +1,4 @@
-from psycopg2 import connect
+from psycopg import connect
 
 from src.config import config
 

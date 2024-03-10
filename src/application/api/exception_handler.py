@@ -10,7 +10,9 @@ def client_not_found_exception_handler(request, exc):
 
 
 def balance_limit_exceeded_exception_handler(request, exc):
-    return JSONResponse(content={"detail": f"Limite atingido"}, status_code=422)
+    return JSONResponse(
+        content={"detail": f"Limite do cliente atingido"}, status_code=422
+    )
 
 
 def init_exception_handler(app: FastAPI):

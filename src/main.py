@@ -15,6 +15,11 @@ transacao_repositorio = TransacaoRepositorio(connection)
 cliente_repositorio = ClienteRepositorio(connection)
 
 
+@app.get("/")
+def read_root():
+    return {"version": "1.0.2"}
+
+
 @app.post("/clientes/{cliente_id}/transacoes")
 def criar_transacao(cliente_id: int, transacao: Transacao):
     if transacao.tipo == "d":

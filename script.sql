@@ -25,3 +25,5 @@ BEGIN;
     ('padaria joia de cocaia', 100000 * 100),
     ('kid mais', 5000 * 100);
 COMMIT;
+
+CREATE INDEX IF NOT EXISTS idx_cliente_id ON transacoes (cliente_id);

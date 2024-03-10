@@ -23,8 +23,8 @@ class ClienteRepositorio:
 
             limite = limite[0]
 
+        with self._connection.cursor() as cursor:
             ultimas_transacoes = []
-
             cursor.execute(
                 """SELECT valor, tipo , descricao, data_transacao, saldo
                 FROM transacoes
