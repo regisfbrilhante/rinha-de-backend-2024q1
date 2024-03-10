@@ -39,7 +39,13 @@ class TesteApi(TestBase):
         response = self.client.post(f"/clientes/{client_id}/transacoes", json=body)
 
         assert response.status_code == 402
-        # assert response.json() == {"detail": "Limite atingido"}
+
+    @pytest.mark.parametrize("operacao", ["c", "d"])
+    def test_quando_o_cliente_nao_existir_deve_retornar_404(self, operacao):
+        body = {"valor": 100001, "tipo": operacao, "descricao": "descricao"}
+        response = self.client.post(f"/clientes/{-1}/transacoes", json=body)
+
+        assert response.status_code == 404
 
     def test_get_extrato_deve_retornar_200_com_o_extrato_esperado(self, client_id):
         response = self.client.get(f"/clientes/{client_id}/extrato")
@@ -49,3 +55,28 @@ class TesteApi(TestBase):
         assert response_data["saldo"]["total"] == 0
         assert response_data["saldo"]["limite"] == 100000
         assert response_data["ultimas_transacoes"] == []
+
+    @pytest.mark.parametrize(
+        "tipo,descricao,valor,id",
+        [
+            ("a", "descricao maior", 100.1, "a"),
+            ("c", "descricao", 100, "a"),
+            ("c", "descricao", 100, 1.1),
+            ("c", "descricao", 100.1, 1),
+            ("d", "descricao", 100.1, 1),
+            ("c", "descricao maior", 100, 1),
+            ("d", "descricao maior", 100, 1),
+            ("c", "descricao", 100.1, 1),
+            ("d", "descricao", 100.1, 1),
+            ("a", "descricao", 100, 1),
+            ("c", "descricao", -100, 1),
+            ("c", "", 100, 1),
+        ],
+    )
+    def test_quando_o_payload_estiver_invalido_deve_retornar_422(
+        self, tipo, descricao, valor, id
+    ):
+        body = {"valor": valor, "tipo": tipo, "descricao": descricao}
+        response = self.client.post(f"/clientes/{id}/transacoes", json=body)
+
+        assert response.status_code == 422

@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from src.exceptions.exceptions import ClientNotFoundException
 from src.schemas.schemas import Extrato, Saldo, TransacaoRealizada
 
 

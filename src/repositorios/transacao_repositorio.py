@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from src.exceptions.exceptions import BalanceLimitExceededException
+from src.exceptions.exceptions import (BalanceLimitExceededException,
+                                       ClientNotFoundException)
 from src.schemas.schemas import ResultadoTransacao, Transacao
 
 
@@ -14,7 +15,8 @@ class TransacaoRepositorio:
             limite = cursor.fetchone()
 
             if not limite:
-                raise ValueError("Cliente não encontrado")
+                cursor.execute("ROLLBACK;")
+                raise ClientNotFoundException("Cliente não encontrado")
 
             limite = limite[0]
 
@@ -88,5 +90,5 @@ class TransacaoRepositorio:
                 ),
             )
 
-        self._session.commit()
+            self._session.commit()
         return ResultadoTransacao(limite=limite, saldo=novo_saldo)
