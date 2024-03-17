@@ -1,5 +1,4 @@
 from datetime import datetime
-from tkinter import E
 
 from src.exceptions.exceptions import (BalanceLimitExceededException,
                                        ClientNotFoundException)
@@ -7,101 +6,77 @@ from src.schemas.schemas import ResultadoTransacao, Transacao
 
 
 class TransacaoRepositorio:
-    def __init__(self, connection) -> None:
-        self._session = connection
-
-    def get_limite(self, cliente_id: int) -> int:
-        with self._session.cursor() as cursor:
-            cursor.execute("SELECT limite FROM clientes WHERE id = %s;", (cliente_id,))
-            limite = cursor.fetchone()
-
-            if not limite:
-                cursor.execute("ROLLBACK;")
-                raise ClientNotFoundException("Cliente não encontrado")
-
-            limite = limite[0]
-
-        return limite
+    def __init__(self, pool) -> None:
+        self._pool = pool
 
     def debito(self, cliente_id: int, transacao: Transacao) -> None:
+        with self._pool.connection() as conn:
+            result = conn.execute(
+                "SELECT limite, saldo FROM clientes WHERE id = %s FOR UPDATE;",
+                (cliente_id,),
+            ).fetchone()
 
-        limite = self.get_limite(cliente_id)
-        with self._session.cursor() as cursor:
-            try:
-                cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
-                cursor.execute("BEGIN;")
+            if not result:
+                raise ClientNotFoundException("Cliente não encontrado")
 
-                cursor.execute(
-                    "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
-                    (cliente_id,),
-                )
+            limite, saldo_atual = result
+            novo_saldo = saldo_atual - transacao.valor
 
-                saldo_atual = cursor.fetchone()
-                saldo_atual = saldo_atual[0] if saldo_atual else 0
+            if novo_saldo < 0 and novo_saldo * -1 > limite:
+                raise BalanceLimitExceededException("Saldo insuficiente")
 
-                novo_saldo = saldo_atual - transacao.valor
+            updated_date = datetime.utcnow()
 
-                if novo_saldo < 0 and novo_saldo * -1 > limite:
-                    cursor.execute("ROLLBACK;")
-                    raise BalanceLimitExceededException("Saldo insuficiente")
+            conn.execute(
+                "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
+                (
+                    transacao.valor,
+                    transacao.descricao,
+                    cliente_id,
+                    novo_saldo,
+                    updated_date,
+                    transacao.tipo,
+                ),
+            )
+            conn.execute(
+                "UPDATE clientes SET saldo = %s WHERE id = %s;",
+                (novo_saldo, cliente_id),
+            )
 
-                updated_date = datetime.utcnow()
-
-                cursor.execute(
-                    "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (
-                        transacao.valor,
-                        transacao.descricao,
-                        cliente_id,
-                        novo_saldo,
-                        updated_date,
-                        transacao.tipo,
-                    ),
-                )
-            except:
-                self._session.rollback()
-                raise
-            finally:
-                self._session.commit()
-
-        return ResultadoTransacao(limite=limite, saldo=novo_saldo)
+            return ResultadoTransacao(limite=limite, saldo=novo_saldo)
 
     def credito(self, cliente_id: int, transacao: Transacao) -> ResultadoTransacao:
 
-        limite = self.get_limite(cliente_id)
+        with self._pool.connection() as conn:
 
-        with self._session.cursor() as cursor:
-            try:
-                cursor.execute("BEGIN;")
-                cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
+            result = conn.execute(
+                "SELECT limite, saldo FROM clientes WHERE id = %s FOR UPDATE;",
+                (cliente_id,),
+            ).fetchone()
+            if not result:
+                raise ClientNotFoundException("Cliente não encontrado")
 
-                cursor.execute(
-                    "SELECT saldo FROM transacoes WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 1;",
-                    (cliente_id,),
-                )
+            limite, saldo_atual = result
 
-                saldo_atual = cursor.fetchone()
-                saldo_atual = saldo_atual[0] if saldo_atual else 0
+            novo_saldo = saldo_atual + transacao.valor
 
-                novo_saldo = saldo_atual + transacao.valor
+            updated_date = datetime.utcnow()
 
-                updated_date = datetime.utcnow()
+            conn.execute(
+                "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
+                (
+                    transacao.valor,
+                    transacao.descricao,
+                    cliente_id,
+                    novo_saldo,
+                    updated_date,
+                    transacao.tipo,
+                ),
+            )
 
-                cursor.execute(
-                    "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (
-                        transacao.valor,
-                        transacao.descricao,
-                        cliente_id,
-                        novo_saldo,
-                        updated_date,
-                        transacao.tipo,
-                    ),
-                )
-            except:
-                self._session.rollback()
-                raise
-            finally:
-                self._session.commit()
-        
-        return ResultadoTransacao(limite=limite, saldo=novo_saldo)
+            conn.execute(
+                "UPDATE clientes SET saldo = %s WHERE id = %s;",
+                (novo_saldo, cliente_id),
+            )
+
+            return ResultadoTransacao(limite=limite, saldo=novo_saldo)

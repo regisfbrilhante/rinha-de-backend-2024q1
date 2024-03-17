@@ -4,7 +4,7 @@ docker/build:
 
 test/setup/infra/start:
 	make test/setup/infra/stop
-	docker container run -d -e POSTGRES_PASSWORD=123 -e POSTGRES_USER=admin -e POSTGRES_DB=rinha -p 5400:5432 --name postgres-teste postgres:15.6-alpine3.19 
+	docker container run -d -e POSTGRES_PASSWORD=123 -e POSTGRES_USER=admin -e POSTGRES_DB=rinha -p 5400:5432 --name postgres-teste postgres:15.6-alpine3.19 -c max_connections=200  
 	sleep 10
 
 test/setup/infra/stop:

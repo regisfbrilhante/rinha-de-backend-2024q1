@@ -9,8 +9,8 @@ from tests.test_base import TestBase
 class TestTransacaoRepository(TestBase):
 
     @pytest.fixture
-    def repositorio(self, connection):
-        return TransacaoRepositorio(connection)
+    def repositorio(self, pool):
+        return TransacaoRepositorio(pool)
 
     def test_quando_o_limite_foi_atingido_deve_lancar_uma_excecao(
         self, repositorio: TransacaoRepositorio, client_id
@@ -22,25 +22,25 @@ class TestTransacaoRepository(TestBase):
             repositorio.debito(cliente_id=client_id, transacao=transacao)
 
     def test_quando_o_limite_nao_foi_atingido_deve_realizar_o_debito(
-        self, repositorio: TransacaoRepositorio, connection, client_id
+        self, repositorio: TransacaoRepositorio, pool, client_id
     ):
 
         transacao = Transacao(descricao="descricao", tipo="d", valor=3)
         resultado = repositorio.debito(cliente_id=client_id, transacao=transacao)
 
-        with connection.cursor() as cursor:
-            cursor.execute(
+        with pool.connection() as conn:
+            saldo = conn.execute(
                 "SELECT saldo FROM transacoes WHERE cliente_id = %s", (client_id,)
-            )
-            saldo = cursor.fetchone()
+            ).fetchone()
+
         assert saldo[0] == -3
 
-        with connection.cursor() as cursor:
-            cursor.execute(
+        with pool.connection() as conn:
+            transacoes = conn.execute(
                 "SELECT cliente_id, valor, tipo , descricao, saldo, data_transacao FROM transacoes WHERE cliente_id = %s",
                 (client_id,),
-            )
-            transacoes = cursor.fetchall()
+            ).fetchall()
+
         assert len(transacoes) == 1
         assert transacoes[0][1] == 3
         assert transacoes[0][2] == "d"
@@ -51,17 +51,16 @@ class TestTransacaoRepository(TestBase):
         assert resultado.saldo == -3
 
     def test_quando_a_operacao_for_de_credito_deve_creditar_o_valor(
-        self, repositorio: TransacaoRepositorio, connection, client_id
+        self, repositorio: TransacaoRepositorio, pool, client_id
     ):
 
         transacao = Transacao(descricao="descricao", tipo="c", valor=1)
         resultado = repositorio.credito(cliente_id=client_id, transacao=transacao)
 
-        with connection.cursor() as cursor:
-            cursor.execute(
+        with pool.connection() as conn:
+            saldo = conn.execute(
                 "SELECT saldo FROM transacoes WHERE cliente_id = %s", (client_id,)
-            )
-            saldo = cursor.fetchone()
+            ).fetchone()
 
         assert saldo[0] == 1
         assert resultado.limite == 100000

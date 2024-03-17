@@ -1,9 +1,8 @@
 import os
-from time import sleep
 
 import pytest
 
-from src.repositorios.pgsql_connection_factory import create_connection
+from src.repositorios.pgsql_connection_factory import create_pool
 from src.repositorios.transacao_repositorio import TransacaoRepositorio
 
 
@@ -25,42 +24,39 @@ class TestBase:
         os.environ["db_name"] = "rinha"
         os.environ["db_user"] = "admin"
         os.environ["db_pass"] = "123"
+        os.environ["pool_max_size"] = "2"
 
-        self.connection = create_connection()
-        self.repositorio = TransacaoRepositorio(self.connection)
+        self.pool = create_pool()
 
-        with self.connection.cursor() as cursor:
-            cursor.execute(query=script_sql)
-            self.connection.commit()
+        self.repositorio = TransacaoRepositorio(self.pool)
 
-        with self.connection.cursor() as cursor:
-            cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
-            cursor.execute("DELETE FROM transacoes")
-            cursor.execute("DELETE FROM clientes")
-            self.connection.commit()
+        with self.pool.connection() as conn:
+            conn.execute(script_sql)
+
+        with self.pool.connection() as conn:
+            conn.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
+            conn.execute("DELETE FROM transacoes")
+            conn.execute("DELETE FROM clientes")
 
         yield
 
-        with self.connection.cursor() as cursor:
-            cursor.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
-            cursor.execute("DELETE FROM transacoes")
-            cursor.execute("DELETE FROM clientes")
-            self.connection.commit()
-
-        self.connection.close()
+        with self.pool.connection() as conn:
+            conn.execute("LOCK TABLE transacoes IN EXCLUSIVE MODE;")
+            conn.execute("DELETE FROM transacoes")
+            conn.execute("DELETE FROM clientes")
 
     @pytest.fixture()
     def client_id(self):
-        with self.connection.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO clientes (nome, limite) VALUES ('rei do baiao',100000) RETURNING id"
+        with self.pool.connection() as conn:
+            cliente = conn.execute(
+                "INSERT INTO clientes (nome, limite, saldo) VALUES ('rei do baiao',100000, 0) RETURNING id"
             )
-            cliente_id = cursor.fetchone()[0]
-            self.connection.commit()
+            cliente_id = cliente.fetchone()[0]
+            conn.commit()
             yield cliente_id
-            cursor.execute(f"DELETE FROM transacoes WHERE cliente_id = {cliente_id}")
-            cursor.execute(f"DELETE FROM clientes WHERE id = {cliente_id}")
+            conn.execute(f"DELETE FROM transacoes WHERE cliente_id = {cliente_id}")
+            conn.execute(f"DELETE FROM clientes WHERE id = {cliente_id}")
 
-    @pytest.fixture()
-    def connection(self):
-        return self.connection
+    @pytest.fixture
+    def pool(self):
+        return self.pool

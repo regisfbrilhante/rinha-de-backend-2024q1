@@ -2,17 +2,16 @@ from fastapi import FastAPI
 
 from src.application.api.exception_handler import init_exception_handler
 from src.repositorios.cliente_repositorio import ClienteRepositorio
-from src.repositorios.pgsql_connection_factory import create_connection
+from src.repositorios.pgsql_connection_factory import create_pool
 from src.repositorios.transacao_repositorio import TransacaoRepositorio
 from src.schemas.schemas import Transacao
 
 app = FastAPI()
 init_exception_handler(app)
 
-
-connection = create_connection()
-transacao_repositorio = TransacaoRepositorio(connection)
-cliente_repositorio = ClienteRepositorio(connection)
+pool = create_pool()
+transacao_repositorio = TransacaoRepositorio(pool=pool)
+cliente_repositorio = ClienteRepositorio(pool=pool)
 
 
 @app.get("/")

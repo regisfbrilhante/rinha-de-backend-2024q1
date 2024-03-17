@@ -5,34 +5,29 @@ from src.schemas.schemas import Extrato, Saldo, TransacaoRealizada
 
 
 class ClienteRepositorio:
-    def __init__(self, connection) -> None:
-        self._connection = connection
+    def __init__(self, pool) -> None:
+        self._pool = pool
 
     def get_extrato(self, cliente_id: int):
 
-        with self._connection.cursor() as cursor:
-            # cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
+        with self._pool.connection() as conn:
 
-            # TODO: refatorar para usar o get_limite no cliente repositorio em vez do transacao repositorio
-            cursor.execute("SELECT limite FROM clientes WHERE id = %s;", (cliente_id,))
-            limite = cursor.fetchone()
+            result = conn.execute(
+                "SELECT limite, saldo FROM clientes WHERE id = %s;", (cliente_id,)
+            ).fetchone()
 
-            if not limite:
-                self._connection.rollback()
+            if not result:
                 raise ClientNotFoundException("Cliente não encontrado")
 
-            limite = limite[0]
+            (limite, saldo) = result
 
-        with self._connection.cursor() as cursor:
             ultimas_transacoes = []
-            cursor.execute(
+            transacoes = conn.execute(
                 """SELECT valor, tipo , descricao, data_transacao, saldo
                 FROM transacoes
                 WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 10;""",
                 (cliente_id,),
-            )
-
-            transacoes = cursor.fetchall()
+            ).fetchall()
 
         for transacao in transacoes:
             ultimas_transacoes.append(
@@ -46,12 +41,7 @@ class ClienteRepositorio:
 
         data_extrato = datetime.utcnow()
 
-        if not transacoes:
-            saldo_atual = 0
-        else:
-            saldo_atual = transacoes[0][-1]
-
         return Extrato(
             ultimas_transacoes=ultimas_transacoes,
-            saldo=Saldo(total=saldo_atual, data_extrato=data_extrato, limite=limite),
+            saldo=Saldo(total=saldo, data_extrato=data_extrato, limite=limite),
         )
