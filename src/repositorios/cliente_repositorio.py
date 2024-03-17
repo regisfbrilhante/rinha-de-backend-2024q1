@@ -8,13 +8,15 @@ class ClienteRepositorio:
     def __init__(self, pool) -> None:
         self._pool = pool
 
-    def get_extrato(self, cliente_id: int):
+    async def get_extrato(self, cliente_id: int):
 
-        with self._pool.connection() as conn:
+        async with self._pool.connection() as conn:
 
-            result = conn.execute(
+            result = await conn.execute(
                 "SELECT limite, saldo FROM clientes WHERE id = %s;", (cliente_id,)
-            ).fetchone()
+            )
+
+            result = await result.fetchone()
 
             if not result:
                 raise ClientNotFoundException("Cliente não encontrado")
@@ -22,12 +24,13 @@ class ClienteRepositorio:
             (limite, saldo) = result
 
             ultimas_transacoes = []
-            transacoes = conn.execute(
+            transacoes = await conn.execute(
                 """SELECT valor, tipo , descricao, data_transacao, saldo
                 FROM transacoes
                 WHERE cliente_id = %s ORDER BY data_transacao DESC LIMIT 10;""",
                 (cliente_id,),
-            ).fetchall()
+            )
+            transacoes = await transacoes.fetchall()
 
         for transacao in transacoes:
             ultimas_transacoes.append(

@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 
 from src.exceptions.exceptions import BalanceLimitExceededException
 from src.repositorios.transacao_repositorio import TransacaoRepositorio
@@ -12,34 +13,39 @@ class TestTransacaoRepository(TestBase):
     def repositorio(self, pool):
         return TransacaoRepositorio(pool)
 
-    def test_quando_o_limite_foi_atingido_deve_lancar_uma_excecao(
+    @pytest.mark.asyncio
+    async def test_quando_o_limite_foi_atingido_deve_lancar_uma_excecao(
         self, repositorio: TransacaoRepositorio, client_id
     ):
 
         transacao = Transacao(descricao="descricao", tipo="d", valor=100001)
 
         with pytest.raises(BalanceLimitExceededException):
-            repositorio.debito(cliente_id=client_id, transacao=transacao)
+            await repositorio.debito(cliente_id=client_id, transacao=transacao)
 
-    def test_quando_o_limite_nao_foi_atingido_deve_realizar_o_debito(
+    @pytest.mark.asyncio
+    async def test_quando_o_limite_nao_foi_atingido_deve_realizar_o_debito(
         self, repositorio: TransacaoRepositorio, pool, client_id
     ):
 
         transacao = Transacao(descricao="descricao", tipo="d", valor=3)
-        resultado = repositorio.debito(cliente_id=client_id, transacao=transacao)
+        resultado = await repositorio.debito(cliente_id=client_id, transacao=transacao)
 
-        with pool.connection() as conn:
-            saldo = conn.execute(
+        async with pool.connection() as conn:
+            saldo = await conn.execute(
                 "SELECT saldo FROM transacoes WHERE cliente_id = %s", (client_id,)
-            ).fetchone()
+            )
+            saldo = await saldo.fetchone()
 
         assert saldo[0] == -3
 
-        with pool.connection() as conn:
-            transacoes = conn.execute(
+        async with pool.connection() as conn:
+            transacoes = await conn.execute(
                 "SELECT cliente_id, valor, tipo , descricao, saldo, data_transacao FROM transacoes WHERE cliente_id = %s",
                 (client_id,),
-            ).fetchall()
+            )
+
+            transacoes = await transacoes.fetchall()
 
         assert len(transacoes) == 1
         assert transacoes[0][1] == 3
@@ -50,17 +56,19 @@ class TestTransacaoRepository(TestBase):
         assert resultado.limite == 100000
         assert resultado.saldo == -3
 
-    def test_quando_a_operacao_for_de_credito_deve_creditar_o_valor(
+    @pytest.mark.asyncio
+    async def test_quando_a_operacao_for_de_credito_deve_creditar_o_valor(
         self, repositorio: TransacaoRepositorio, pool, client_id
     ):
 
         transacao = Transacao(descricao="descricao", tipo="c", valor=1)
-        resultado = repositorio.credito(cliente_id=client_id, transacao=transacao)
+        resultado = await repositorio.credito(cliente_id=client_id, transacao=transacao)
 
-        with pool.connection() as conn:
-            saldo = conn.execute(
+        async with pool.connection() as conn:
+            saldo = await conn.execute(
                 "SELECT saldo FROM transacoes WHERE cliente_id = %s", (client_id,)
-            ).fetchone()
+            )
+            saldo = await saldo.fetchone()
 
         assert saldo[0] == 1
         assert resultado.limite == 100000

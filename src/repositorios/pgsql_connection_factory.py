@@ -1,4 +1,4 @@
-from psycopg_pool import ConnectionPool
+from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from src.config import config
 
@@ -8,12 +8,16 @@ def create_uri():
     return uri
 
 
-def create_pool():
-    pool_max_size = int(config.get("pool_max_size"))
-
+async def create_pool():
     uri = create_uri()
-    pool = ConnectionPool(
-        uri, min_size=pool_max_size, max_size=pool_max_size, open=True, timeout=5
-    )
-    pool.wait()
+    pool = AsyncConnectionPool(uri, max_size=10, min_size=10)
+
+    # pool = await AsyncConnectionPool(uri, max_size=10, min_size=10)
+
+    # pool_max_size = int(config.get("pool_max_size"))
+
+    # pool = ConnectionPool(
+    #     uri, min_size=pool_max_size, max_size=pool_max_size, open=True, timeout=5
+    # )
+    # pool.wait()
     return pool

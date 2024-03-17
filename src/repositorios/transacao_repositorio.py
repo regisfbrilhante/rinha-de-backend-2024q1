@@ -1,7 +1,11 @@
 from datetime import datetime
 
-from src.exceptions.exceptions import (BalanceLimitExceededException,
-                                       ClientNotFoundException)
+import pytest
+
+from src.exceptions.exceptions import (
+    BalanceLimitExceededException,
+    ClientNotFoundException,
+)
 from src.schemas.schemas import ResultadoTransacao, Transacao
 
 
@@ -9,12 +13,14 @@ class TransacaoRepositorio:
     def __init__(self, pool) -> None:
         self._pool = pool
 
-    def debito(self, cliente_id: int, transacao: Transacao) -> None:
-        with self._pool.connection() as conn:
-            result = conn.execute(
+    async def debito(self, cliente_id: int, transacao: Transacao) -> None:
+        async with self._pool.connection() as conn:
+            result = await conn.execute(
                 "SELECT limite, saldo FROM clientes WHERE id = %s FOR UPDATE;",
                 (cliente_id,),
-            ).fetchone()
+            )
+
+            result = await result.fetchone()
 
             if not result:
                 raise ClientNotFoundException("Cliente não encontrado")
@@ -27,7 +33,7 @@ class TransacaoRepositorio:
 
             updated_date = datetime.utcnow()
 
-            conn.execute(
+            await conn.execute(
                 "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     transacao.valor,
@@ -38,21 +44,27 @@ class TransacaoRepositorio:
                     transacao.tipo,
                 ),
             )
-            conn.execute(
+
+            await conn.execute(
                 "UPDATE clientes SET saldo = %s WHERE id = %s;",
                 (novo_saldo, cliente_id),
             )
 
             return ResultadoTransacao(limite=limite, saldo=novo_saldo)
 
-    def credito(self, cliente_id: int, transacao: Transacao) -> ResultadoTransacao:
+    async def credito(
+        self, cliente_id: int, transacao: Transacao
+    ) -> ResultadoTransacao:
 
-        with self._pool.connection() as conn:
+        async with self._pool.connection() as conn:
 
-            result = conn.execute(
+            result = await conn.execute(
                 "SELECT limite, saldo FROM clientes WHERE id = %s FOR UPDATE;",
                 (cliente_id,),
-            ).fetchone()
+            )
+
+            result = await result.fetchone()
+
             if not result:
                 raise ClientNotFoundException("Cliente não encontrado")
 
@@ -62,7 +74,7 @@ class TransacaoRepositorio:
 
             updated_date = datetime.utcnow()
 
-            conn.execute(
+            await conn.execute(
                 "INSERT INTO TRANSACOES (valor, descricao, cliente_id, saldo, data_transacao, tipo) VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     transacao.valor,
@@ -74,7 +86,7 @@ class TransacaoRepositorio:
                 ),
             )
 
-            conn.execute(
+            await conn.execute(
                 "UPDATE clientes SET saldo = %s WHERE id = %s;",
                 (novo_saldo, cliente_id),
             )
