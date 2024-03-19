@@ -10,14 +10,5 @@ def create_uri():
 
 async def create_pool():
     uri = create_uri()
-    pool = AsyncConnectionPool(uri, max_size=10, min_size=10)
-
-    # pool = await AsyncConnectionPool(uri, max_size=10, min_size=10)
-
-    # pool_max_size = int(config.get("pool_max_size"))
-
-    # pool = ConnectionPool(
-    #     uri, min_size=pool_max_size, max_size=pool_max_size, open=True, timeout=5
-    # )
-    # pool.wait()
+    pool = AsyncConnectionPool(uri, max_size=5, min_size=5)
     return pool

@@ -1,10 +1,8 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from src.exceptions.exceptions import (
-    BalanceLimitExceededException,
-    ClientNotFoundException,
-)
+from src.exceptions.exceptions import (BalanceLimitExceededException,
+                                       ClientNotFoundException)
 
 
 def client_not_found_exception_handler(request, exc):

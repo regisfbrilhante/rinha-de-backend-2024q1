@@ -9,7 +9,7 @@ class Config:
             "db_name": "rinha",
             "db_user": "admin",
             "db_pass": "123",
-            "pool_max_size": 10,
+            "pool_max_size": 2,
         }
 
     def get(self, key: str) -> str:

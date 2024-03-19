@@ -1,11 +1,7 @@
 from datetime import datetime
 
-import pytest
-
-from src.exceptions.exceptions import (
-    BalanceLimitExceededException,
-    ClientNotFoundException,
-)
+from src.exceptions.exceptions import (BalanceLimitExceededException,
+                                       ClientNotFoundException)
 from src.schemas.schemas import ResultadoTransacao, Transacao
 
 

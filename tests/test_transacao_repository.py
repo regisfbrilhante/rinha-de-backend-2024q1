@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 
 from src.exceptions.exceptions import BalanceLimitExceededException
 from src.repositorios.transacao_repositorio import TransacaoRepositorio
