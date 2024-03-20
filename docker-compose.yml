@@ -1,10 +1,8 @@
+# Este docker compose teve como base o da rinha de backend 2024 q1.
 version: "3.5"
 
 services:
   api01: &api
-    # Lembre-se de que seu serviço HTTP deve estar hospedado num repositório
-    # publicamente acessível! Ex.: hub.docker.com
-    # image: ana/minha-api-matadora:latest
     image: minha-api-matadora:latest
     build: .
     hostname: api01
@@ -15,9 +13,6 @@ services:
       - DB_USER=admin
       - DB_PASS=123
     
-    # Não é necessário expor qualquer porta além da porta do load balancer,
-    # mas é comum as pessoas o fazerem para testarem suas APIs e conectarem
-    # ao banco de dados na fase de desenvolvimento.
     ports:
       - "8081:8080"
     restart: on-failure:10
@@ -53,7 +48,6 @@ services:
       - api01
       - api02
     ports:
-        # Obrigatório expor/usar a porta 9999 no load balancer!
       - "9999:9999" 
     deploy:
       resources:
@@ -65,7 +59,6 @@ services:
 
   db:
     image: postgres:15.6-alpine3.19
-    # command: -c 'max_connections=100'
     hostname: db
     environment:
       - POSTGRES_PASSWORD=123
@@ -85,28 +78,19 @@ services:
     deploy:
       resources:
         limits:
-          # Note que a soma de todos os limites dos serviços
-          # aqui declarados é de 1.5 unidades de CPU e 550MB
-          # de memória. A distribuição feita aqui é apenas
-          # um exemplo – distribua como quiser.
           cpus: "0.63"
           memory: "120MB"
     networks:
       - rinha-nginx-2024q1
 
-# O uso do modo `bridge` deve ser adequado à carga que será usada no teste.
-# A edição anterior se beneficiou do modo host pois o volume de requisições
-# era relativamente alto e a virtualização da rede se tornou um gargalo, mas
-# este modo é mais complexo de ser configurado. Fique à vontade para usar o
-# modo que quiser desde que não conflite com portas trivialmente usadas em um
-# SO.
+
 networks:
   rinha-nginx-2024q1:
     driver: bridge
     name: rinha-nginx-2024q1
-    # name: hostdoc
     external: true
 
+  # Outra forma de configurar a rede seria da forma abaixo. Seria necessário remover a rede dos services.
   # default:
   #   driver: bridge
   #   name: rinha-nginx-2024q1
